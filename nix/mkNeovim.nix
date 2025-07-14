@@ -80,7 +80,7 @@ let
       # for non nix repo root is the nvim config dir
       # using the repo root would also catch dirs like autolaod/, colors/, ftplugins/, lsp/, pack/, spell/ etc
       # but then other files need to be filtered
-      src = ../nvim;
+      src = ../.;
     in
     lib.cleanSourceWith {
       inherit src;
@@ -90,77 +90,85 @@ let
         let
           srcPrefix = toString src + "/";
           relPath = lib.removePrefix srcPrefix (toString path);
+          allowedList = [
+            "lua"
+          ];
+          isAllowed = lib.any (p: lib.hasPrefix p relPath) allowedList;
+          isIgnored = lib.all (regex: builtins.match regex relPath == null) ignoreConfigRegexes;
         in
-        lib.all (regex: builtins.match regex relPath == null) ignoreConfigRegexes;
+        isAllowed && isIgnored;
     };
 
   # Split runtimepath into 3 directories:
   # - lua, to be prepended to the rtp at the beginning of init.lua
   # - nvim, containing plugin, ftplugin, ... subdirectories
-  # - after, to be sourced last in the startup initialization
   # See also: https://neovim.io/doc/user/starting.html
   nvimRtp = stdenv.mkDerivation {
     name = "nvim-rtp";
     src = nvimRtpSrc;
 
     buildPhase = ''
-      mkdir -p $out/nvim
       mkdir -p $out/lua
-      rm init.lua
     '';
 
     installPhase = ''
-      # TODO: cp from ./ bc src is the lua folder
+      # TODO: handle copying other possible folders
       cp -r lua $out/lua
       rm -r lua
-      # Copy nvim/after only if it exists
-      if [ -d "after" ]; then
-          cp -r after $out/after
-          rm -r after
-      fi
-      # Copy rest of nvim/ subdirectories only if they exist
-      if [ ! -z "$(ls -A)" ]; then
-          cp -r -- * $out/nvim
-      fi
+      # # Copy nvim/after only if it exists
+      # if [ -d "after" ]; then
+      #     cp -r after $out/after
+      #     rm -r after
+      # fi
+      # # Copy rest of nvim/ subdirectories only if they exist
+      # if [ ! -z "$(ls -A)" ]; then
+      #     cp -r -- * $out/nvim
+      # fi
     '';
   };
+
+  # scheint zu funktionieren. beim bauen wird der packdir ausgegeben
+  packDir = "${neovimUtils.packDir neovim-wrapped.packpathDirs}";
 
   # The final init.lua content that we pass to the Neovim wrapper.
   # It wraps the user init.lua, prepends the lua lib directory to the RTP
   # and prepends the nvim and after directory to the RTP
   # It also adds logic for bootstrapping dev plugins (for plugin developers)
-  initLua =
-    ''
-      -- prepend lua directory
-      vim.opt.rtp:prepend('${nvimRtp}/lua')
-    ''
-    # Wrap init.lua
-    + (builtins.readFile ../nvim/init.lua)
-    # Bootstrap/load dev plugins
-    + optionalString (devPlugins != [ ]) (
-      ''
-        local dev_pack_path = vim.fn.stdpath('data') .. '/site/pack/dev'
-        local dev_plugins_dir = dev_pack_path .. '/opt'
-        local dev_plugin_path
-      ''
-      + strings.concatMapStringsSep "\n" (plugin: ''
-        dev_plugin_path = dev_plugins_dir .. '/${plugin.name}'
-        if vim.fn.empty(vim.fn.glob(dev_plugin_path)) > 0 then
-          vim.notify('Bootstrapping dev plugin ${plugin.name} ...', vim.log.levels.INFO)
-          vim.cmd('!${git}/bin/git clone ${plugin.url} ' .. dev_plugin_path)
-        end
-        vim.cmd('packadd! ${plugin.name}')
-      '') devPlugins
-    )
-    # Prepend nvim and after directories to the runtimepath
-    # NOTE: This is done after init.lua,
-    # because of a bug in Neovim that can cause filetype plugins
-    # to be sourced prematurely, see https://github.com/neovim/neovim/issues/19008
-    # We prepend to ensure that user ftplugins are sourced before builtin ftplugins.
-    + ''
-      vim.opt.rtp:prepend('${nvimRtp}/nvim')
-      vim.opt.rtp:prepend('${nvimRtp}/after')
-    '';
+  initLua = ''
+    -- prepend lua directory
+    vim.opt.rtp:prepend('${nvimRtp}/lua')
+  ''
+  # Wrap init.lua
+  # + (builtins.readFile ../nvim/init.lua)
+  #
+  # NOTE: disabled because hopefully someday lazy handles devPlugins
+  # Bootstrap/load dev plugins
+  # + optionalString (devPlugins != [ ]) (
+  #   ''
+  #     local dev_pack_path = vim.fn.stdpath('data') .. '/site/pack/dev'
+  #     local dev_plugins_dir = dev_pack_path .. '/opt'
+  #     local dev_plugin_path
+  #   ''
+  #   + strings.concatMapStringsSep "\n" (plugin: ''
+  #     dev_plugin_path = dev_plugins_dir .. '/${plugin.name}'
+  #     if vim.fn.empty(vim.fn.glob(dev_plugin_path)) > 0 then
+  #       vim.notify('Bootstrapping dev plugin ${plugin.name} ...', vim.log.levels.INFO)
+  #       vim.cmd('!${git}/bin/git clone ${plugin.url} ' .. dev_plugin_path)
+  #     end
+  #     vim.cmd('packadd! ${plugin.name}')
+  #   '') devPlugins
+  # )
+  # Prepend nvim and after directories to the runtimepath
+  # NOTE: This is done after init.lua,
+  # because of a bug in Neovim that can cause filetype plugins
+  # to be sourced prematurely, see https://github.com/neovim/neovim/issues/19008
+  # We prepend to ensure that user ftplugins are sourced before builtin ftplugins.
+  #
+  # + ''
+  #   vim.opt.rtp:prepend('${nvimRtp}/nvim')
+  #   vim.opt.rtp:prepend('${nvimRtp}/after')
+  # ''
+  ;
 
   # Add arguments to the Neovim wrapper script
   extraMakeWrapperArgs =
