@@ -237,9 +237,6 @@ return {
             -- Automatically install LSPs and related tools to stdpath for Neovim
             -- Mason must be loaded before its dependents so we need to set it up here.
             -- NOTE: `opts = {}` is the same as calling `require('mason').setup({})`
-            { 'mason-org/mason.nvim', opts = {} },
-            'mason-org/mason-lspconfig.nvim',
-            'WhoIsSethDaniel/mason-tool-installer.nvim',
 
             -- Useful status updates for LSP.
             { 'j-hui/fidget.nvim', opts = {} },
@@ -479,26 +476,26 @@ return {
             --
             -- You can add other tools here that you want Mason to install
             -- for you, so that they are available from within Neovim.
-            local ensure_installed = vim.tbl_keys(servers or {})
-            vim.list_extend(ensure_installed, {
-                'stylua', -- Used to format Lua code
-            })
-            require('mason-tool-installer').setup({ ensure_installed = ensure_installed })
-
-            require('mason-lspconfig').setup({
-                ensure_installed = {}, -- explicitly set to an empty table (Kickstart populates installs via mason-tool-installer)
-                automatic_installation = false,
-                handlers = {
-                    function(server_name)
-                        local server = servers[server_name] or {}
-                        -- This handles overriding only values explicitly passed
-                        -- by the server configuration above. Useful when disabling
-                        -- certain features of an LSP (for example, turning off formatting for ts_ls)
-                        server.capabilities = vim.tbl_deep_extend('force', {}, capabilities, server.capabilities or {})
-                        require('lspconfig')[server_name].setup(server)
-                    end,
-                },
-            })
+            -- local ensure_installed = vim.tbl_keys(servers or {})
+            -- vim.list_extend(ensure_installed, {
+            --     'stylua', -- Used to format Lua code
+            -- })
+            -- require('mason-tool-installer').setup({ ensure_installed = ensure_installed })
+            --
+            -- require('mason-lspconfig').setup({
+            --     ensure_installed = {}, -- explicitly set to an empty table (Kickstart populates installs via mason-tool-installer)
+            --     automatic_installation = false,
+            --     handlers = {
+            --         function(server_name)
+            --             local server = servers[server_name] or {}
+            --             -- This handles overriding only values explicitly passed
+            --             -- by the server configuration above. Useful when disabling
+            --             -- certain features of an LSP (for example, turning off formatting for ts_ls)
+            --             server.capabilities = vim.tbl_deep_extend('force', {}, capabilities, server.capabilities or {})
+            --             require('lspconfig')[server_name].setup(server)
+            --         end,
+            --     },
+            -- })
         end,
     },
 
@@ -551,6 +548,7 @@ return {
             -- Snippet Engine
             {
                 'L3MON4D3/LuaSnip',
+                name = 'luasnip', -- required in nix for lazy to find the plugin
                 version = '2.*',
                 build = (function()
                     -- Build Step is needed for regex support in snippets.
@@ -728,6 +726,14 @@ return {
                 'vim',
                 'vimdoc',
             },
+            parser_install_dir = (function()
+                local dir = vim.fn.stdpath('cache') .. '/treesitter_parsers'
+                vim.fn.mkdir(dir, 'p')
+                vim.opt.runtimepath:append(dir)
+                vim.notify(dir)
+                return dir
+            end)(),
+
             -- Autoinstall languages that are not installed
             auto_install = true,
             highlight = {
