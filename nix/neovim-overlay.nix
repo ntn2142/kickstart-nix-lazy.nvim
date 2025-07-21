@@ -20,6 +20,7 @@ let
   # This is the helper function that builds the Neovim derivation.
   mkNeovim = pkgs.callPackage ./mkNeovim.nix {
     inherit (pkgs-locked) wrapNeovimUnstable neovimUtils;
+    lazy-nvim = pkgs.vimPlugins.lazy-nvim;
   };
 
   # A plugin can either be a package or an attrset, such as
@@ -31,7 +32,6 @@ let
   #   ...
   # }
   all-plugins = with pkgs.vimPlugins; [
-    lazy-nvim
     # plugins from nixpkgs go in here.
     # https://search.nixos.org/packages?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=vimPlugins
     # nvim-treesitter.withAllGrammars

@@ -8,6 +8,7 @@
   # Set by the overlay to ensure we use a compatible version of `wrapNeovimUnstable`
   wrapNeovimUnstable,
   neovimUtils,
+  lazy-nvim,
 }:
 with lib;
 {
@@ -56,7 +57,9 @@ let
   externalPackages = extraPackages ++ (optionals withSqlite [ sqlite ]);
 
   # Map all plugins to an attrset { plugin = <plugin>; config = <config>; optional = <tf>; ... }
-  normalizedPlugins = map (x: defaultPlugin // (if x ? plugin then x else { plugin = x; })) plugins;
+  normalizedPlugins = map (x: defaultPlugin // (if x ? plugin then x else { plugin = x; })) (
+    [ lazy-nvim ] ++ plugins
+  );
 
   # This nixpkgs util function creates an attrset
   # that pkgs.wrapNeovimUnstable uses to configure the Neovim build.
@@ -138,25 +141,11 @@ let
     -- source general settings
     require('settings')
 
-    local lazyconfig = require('lazyconfig')
-
-    lazyconfig = vim.tbl_deep_extend('force', lazyconfig, {
-      performance = {
-        reset_packpath = false,
-        rtp = {
-          reset = false,
-        },
-      },
-      dev = {
-        path = '${neovimUtils.packDir neovim-wrapped.packpathDirs}',
-      },
-      install = {
-        -- Safeguard in case we forget to install a plugin with Nix
-        missing = false,
-      },
-    })
-
-    require('lazy').setup(lazy_config)
+    -- setup lazy
+    local packpath = '${neovimUtils.packDir neovim-wrapped.packpathDirs}/pack/myNeovimPackages/start'
+    print(packpath)
+    local lazyconfig = require('lazyconfig.nix')(packpath)
+    require('lazy').setup(lazyconfig)
   '';
 
   # Add arguments to the Neovim wrapper script
