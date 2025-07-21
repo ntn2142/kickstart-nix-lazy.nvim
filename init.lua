@@ -30,7 +30,4 @@ end
 vim.opt.rtp:prepend(lazypath)
 
 -- TODO: load lazy config from lua/
-require('lazy').setup {
-  spec = { { import = 'plugins' }, { import = 'languages' } },
-  change_detection = { enabled = false, notify = false },
-}
+require('lazy').setup(require('lazyconfig'))
