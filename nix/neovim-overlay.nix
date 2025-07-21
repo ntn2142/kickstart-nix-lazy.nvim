@@ -113,6 +113,13 @@ in
     wrapRc = false;
   };
 
+  nvim-test = mkNeovim {
+    plugins = all-plugins;
+    inherit extraPackages;
+    appName = "nvim-test";
+    wrapRc = true;
+  };
+
   # This can be symlinked in the devShell's shellHook
   nvim-luarc-json = final.mk-luarc-json {
     plugins = all-plugins;
