@@ -113,7 +113,7 @@ let
 
     installPhase = ''
       # TODO: handle copying other possible folders
-      cp -r lua $out/lua
+      cp -r lua $out
       rm -r lua
       # # Copy nvim/after only if it exists
       # if [ -d "after" ]; then
@@ -127,48 +127,37 @@ let
     '';
   };
 
-  # scheint zu funktionieren. beim bauen wird der packdir ausgegeben
-  packDir = "${neovimUtils.packDir neovim-wrapped.packpathDirs}";
-
   # The final init.lua content that we pass to the Neovim wrapper.
   # It wraps the user init.lua, prepends the lua lib directory to the RTP
   # and prepends the nvim and after directory to the RTP
   # It also adds logic for bootstrapping dev plugins (for plugin developers)
   initLua = ''
     -- prepend lua directory
-    vim.opt.rtp:prepend('${nvimRtp}/lua')
-  ''
-  # Wrap init.lua
-  # + (builtins.readFile ../nvim/init.lua)
-  #
-  # NOTE: disabled because hopefully someday lazy handles devPlugins
-  # Bootstrap/load dev plugins
-  # + optionalString (devPlugins != [ ]) (
-  #   ''
-  #     local dev_pack_path = vim.fn.stdpath('data') .. '/site/pack/dev'
-  #     local dev_plugins_dir = dev_pack_path .. '/opt'
-  #     local dev_plugin_path
-  #   ''
-  #   + strings.concatMapStringsSep "\n" (plugin: ''
-  #     dev_plugin_path = dev_plugins_dir .. '/${plugin.name}'
-  #     if vim.fn.empty(vim.fn.glob(dev_plugin_path)) > 0 then
-  #       vim.notify('Bootstrapping dev plugin ${plugin.name} ...', vim.log.levels.INFO)
-  #       vim.cmd('!${git}/bin/git clone ${plugin.url} ' .. dev_plugin_path)
-  #     end
-  #     vim.cmd('packadd! ${plugin.name}')
-  #   '') devPlugins
-  # )
-  # Prepend nvim and after directories to the runtimepath
-  # NOTE: This is done after init.lua,
-  # because of a bug in Neovim that can cause filetype plugins
-  # to be sourced prematurely, see https://github.com/neovim/neovim/issues/19008
-  # We prepend to ensure that user ftplugins are sourced before builtin ftplugins.
-  #
-  # + ''
-  #   vim.opt.rtp:prepend('${nvimRtp}/nvim')
-  #   vim.opt.rtp:prepend('${nvimRtp}/after')
-  # ''
-  ;
+    vim.opt.rtp:prepend('${nvimRtp}')
+
+    -- source general settings
+    require('settings')
+
+    local lazyconfig = require('lazyconfig')
+
+    lazyconfig = vim.tbl_deep_extend('force', lazyconfig, {
+      performance = {
+        reset_packpath = false,
+        rtp = {
+          reset = false,
+        },
+      },
+      dev = {
+        path = '${neovimUtils.packDir neovim-wrapped.packpathDirs}',
+      },
+      install = {
+        -- Safeguard in case we forget to install a plugin with Nix
+        missing = false,
+      },
+    })
+
+    require('lazy').setup(lazy_config)
+  '';
 
   # Add arguments to the Neovim wrapper script
   extraMakeWrapperArgs =
