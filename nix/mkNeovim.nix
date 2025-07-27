@@ -143,7 +143,6 @@ let
 
     -- setup lazy
     local packpath = '${neovimUtils.packDir neovim-wrapped.packpathDirs}/pack/myNeovimPackages/start'
-    print(packpath)
     local lazyconfig = require('lazyconfig.nix')(packpath)
     require('lazy').setup(lazyconfig)
   '';
